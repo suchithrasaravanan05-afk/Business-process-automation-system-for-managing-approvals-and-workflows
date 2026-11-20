@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Manager Portal | LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card bg-primary text-white p-4 shadow-sm">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-white text-primary rounded-circle p-3 d-inline-flex">
+                    <i class="bi bi-person-badge-fill fs-2"></i>
+                </div>
+                <div>
+                    <h2 class="fw-bold mb-1">Manager Portal</h2>
+                    <p class="mb-0 opacity-75">
+                        Logged in as <span class="fw-semibold">{{ user.get_full_name|default:user.username }}</span> &bull; 
+                        Role: <span class="badge bg-light text-primary">Manager</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-8">
+        <div class="card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-people-fill text-primary me-2"></i>Team Members Reporting to You</h5>
+            {% if subordinates %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name / Username</th>
+                                <th>Employee ID</th>
+                                <th>Department</th>
+                                <th>Role</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in subordinates %}
+                                <tr>
+                                    <td class="fw-semibold">{{ sub.get_full_name|default:sub.username }}</td>
+                                    <td><span class="badge bg-light text-dark border">{{ sub.employee_id|default:"N/A" }}</span></td>
+                                    <td>{{ sub.department.name|default:"Unassigned" }}</td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary">{{ sub.get_role_display }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-light border text-muted py-3">
+                    <i class="bi bi-info-circle me-1"></i> No direct reporting subordinates currently assigned to your profile in the system.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card p-4 border-start border-4 border-info">
+            <h5 class="fw-bold text-info-emphasis mb-2">
+                <i class="bi bi-hourglass-split me-1"></i> Approver Workflow Queue
+            </h5>
+            <p class="text-muted small">
+                As per task instructions, the approver review screens (Approve, Reject, Send Back) will be unlocked in the next milestone.
+            </p>
+            <div class="bg-light p-3 rounded small text-secondary">
+                <i class="bi bi-check2-circle text-success me-1"></i> Leave requests submitted by your team are actively routed to your approval queue in the database.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block title %}Employee Dashboard | LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold mb-1">Welcome, {{ user.get_full_name|default:user.username }}!</h2>
+        <p class="text-muted mb-0">
+            {% if user.department %}<span class="badge bg-secondary me-2">{{ user.department.name }}</span>{% endif %}
+            Employee ID: <span class="fw-semibold">{{ user.employee_id|default:"N/A" }}</span>
+            {% if user.manager %}
+                &bull; Reporting Manager: <span class="fw-semibold text-primary">{{ user.manager.get_full_name|default:user.manager.username }}</span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <a href="{% url 'apply_leave' %}" class="btn btn-primary btn-lg shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i> Apply for Leave
+        </a>
+    </div>
+</div>
+
+<!-- Leave Balances Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <h5 class="fw-bold text-secondary mb-3"><i class="bi bi-wallet2 me-2"></i>Leave Quotas & Balances ({{ current_year }})</h5>
+    </div>
+    {% for bal in balances %}
+        <div class="col-12 col-md-4">
+            <div class="card h-100 p-3 border-start border-4 border-primary">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="fw-bold mb-0 text-dark">{{ bal.leave_type.name }}</h6>
+                        <small class="text-muted">{{ bal.leave_type.code }} {% if bal.leave_type.is_paid %}&bull; Paid{% endif %}</small>
+                    </div>
+                    <span class="badge bg-primary fs-6">{{ bal.remaining_days }}d Left</span>
+                </div>
+                <div class="row g-2 text-center pt-2 border-top mt-2 small">
+                    <div class="col-4">
+                        <div class="text-muted">Allocated</div>
+                        <div class="fw-bold">{{ bal.allocated_days }}</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-muted">Used</div>
+                        <div class="fw-bold text-success">{{ bal.used_days }}</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-muted">Pending</div>
+                        <div class="fw-bold text-warning">{{ bal.pending_days }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-12">
+            <div class="alert alert-light border text-center text-muted py-3">
+                No leave balance records found for year {{ current_year }}. They will be automatically initialized when you apply.
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card p-3 text-center">
+            <div class="text-muted small fw-semibold text-uppercase">Total Applied</div>
+            <div class="fs-3 fw-bold text-dark">{{ stats.total }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 text-center border-start border-3 border-warning">
+            <div class="text-muted small fw-semibold text-uppercase">In Review / Pending</div>
+            <div class="fs-3 fw-bold text-warning">{{ stats.pending }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 text-center border-start border-3 border-success">
+            <div class="text-muted small fw-semibold text-uppercase">Approved</div>
+            <div class="fs-3 fw-bold text-success">{{ stats.approved }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 text-center border-start border-3 border-danger">
+            <div class="text-muted small fw-semibold text-uppercase">Rejected / Returned</div>
+            <div class="fs-3 fw-bold text-danger">{{ stats.rejected|add:stats.sent_back }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Requests -->
+<div class="card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-clock-history me-2"></i>Recent Leave Requests</h5>
+        <a href="{% url 'my_requests' %}" class="btn btn-outline-primary btn-sm">
+            View All Requests <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    {% if recent_requests %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Req #</th>
+                        <th>Leave Type</th>
+                        <th>Dates</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Workflow Progress</th>
+                        <th>Submitted On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in recent_requests %}
+                        <tr>
+                            <td><span class="fw-bold text-secondary">#{{ req.id }}</span></td>
+                            <td><span class="badge bg-light text-dark border">{{ req.leave_type.name }}</span></td>
+                            <td>{{ req.start_date|date:"M d, Y" }} &rarr; {{ req.end_date|date:"M d, Y" }}</td>
+                            <td><span class="fw-bold">{{ req.total_days }} day(s)</span></td>
+                            <td>
+                                {% if req.status == 'APPROVED' %}
+                                    <span class="badge bg-success">Approved</span>
+                                {% elif req.status == 'REJECTED' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                {% elif req.status == 'SENT_BACK' %}
+                                    <span class="badge bg-info text-dark">Sent Back</span>
+                                {% elif req.status == 'SUBMITTED' or req.status == 'IN_REVIEW' %}
+                                    <span class="badge bg-warning text-dark">In Review</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ req.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for step in req.approval_steps.all %}
+                                        <span class="badge {% if step.status == 'APPROVED' %}bg-success{% elif step.status == 'REJECTED' %}bg-danger{% elif step.status == 'SENT_BACK' %}bg-info text-dark{% else %}bg-secondary-subtle text-secondary border{% endif %} small">
+                                            L{{ step.step_order }}: {{ step.get_approver_role_display }}
+                                        </span>
+                                    {% empty %}
+                                        <span class="text-muted small">No steps</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td class="text-muted small">{{ req.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-folder2-open fs-1 d-block mb-2 text-secondary"></i>
+            No leave requests submitted yet.
+            <div class="mt-2">
+                <a href="{% url 'apply_leave' %}" class="btn btn-sm btn-primary">Apply Now</a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

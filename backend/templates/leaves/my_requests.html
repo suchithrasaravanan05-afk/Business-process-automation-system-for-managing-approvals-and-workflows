@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}My Leave Requests | LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col-md-8">
+        <h2 class="fw-bold mb-1"><i class="bi bi-journal-text text-primary me-2"></i>My Leave Requests</h2>
+        <p class="text-muted mb-0">Track your submitted applications and view real-time multi-level approval progress</p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <a href="{% url 'apply_leave' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Apply for Leave
+        </a>
+    </div>
+</div>
+
+<div class="card p-4 shadow-sm">
+    {% if leave_requests %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 80px;">Req #</th>
+                        <th>Leave Type</th>
+                        <th>Dates & Duration</th>
+                        <th>Reason</th>
+                        <th>Overall Status</th>
+                        <th>Multi-Level Approval Pipeline</th>
+                        <th>Submitted On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in leave_requests %}
+                        <tr>
+                            <td>
+                                <span class="fw-bold text-secondary">#{{ req.id }}</span>
+                            </td>
+                            <td>
+                                <span class="fw-semibold">{{ req.leave_type.name }}</span>
+                                <div class="text-muted small">{{ req.leave_type.code }}</div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-dark">
+                                    {{ req.start_date|date:"M d, Y" }} &rarr; {{ req.end_date|date:"M d, Y" }}
+                                </div>
+                                <span class="badge bg-light text-dark border mt-1">
+                                    <i class="bi bi-hourglass me-1"></i>{{ req.total_days }} day(s)
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-truncate d-inline-block text-secondary small" style="max-width: 220px;" title="{{ req.reason }}">
+                                    {{ req.reason }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if req.status == 'APPROVED' %}
+                                    <span class="badge bg-success p-2">
+                                        <i class="bi bi-check-circle me-1"></i> Approved
+                                    </span>
+                                {% elif req.status == 'REJECTED' %}
+                                    <span class="badge bg-danger p-2">
+                                        <i class="bi bi-x-circle me-1"></i> Rejected
+                                    </span>
+                                {% elif req.status == 'SENT_BACK' %}
+                                    <span class="badge bg-info text-dark p-2">
+                                        <i class="bi bi-arrow-return-left me-1"></i> Sent Back
+                                    </span>
+                                {% elif req.status == 'SUBMITTED' %}
+                                    <span class="badge bg-warning text-dark p-2">
+                                        <i class="bi bi-send me-1"></i> Submitted
+                                    </span>
+                                {% elif req.status == 'IN_REVIEW' %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary p-2">
+                                        <i class="bi bi-clock me-1"></i> In Review
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary p-2">{{ req.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column gap-1">
+                                    {% for step in req.approval_steps.all %}
+                                        <div class="d-flex align-items-center gap-1 small">
+                                            <span class="badge bg-secondary" style="font-size: 0.7rem;">L{{ step.step_order }}</span>
+                                            <span class="fw-semibold">{{ step.get_approver_role_display }}:</span>
+                                            {% if step.status == 'APPROVED' %}
+                                                <span class="badge bg-success-subtle text-success border border-success">Approved</span>
+                                            {% elif step.status == 'REJECTED' %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger">Rejected</span>
+                                            {% elif step.status == 'SENT_BACK' %}
+                                                <span class="badge bg-info-subtle text-info-emphasis border border-info">Sent Back</span>
+                                            {% else %}
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning">Pending Review</span>
+                                            {% endif %}
+                                            {% if step.assigned_approver %}
+                                                <span class="text-muted" style="font-size: 0.75rem;">({{ step.assigned_approver.username }})</span>
+                                            {% endif %}
+                                        </div>
+                                    {% empty %}
+                                        <span class="text-muted small">No steps instantiated</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-muted small">{{ req.created_at|date:"M d, Y" }}</div>
+                                <div class="text-muted small" style="font-size: 0.75rem;">{{ req.created_at|date:"H:i" }}</div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-file-earmark-text text-muted" style="font-size: 3.5rem;"></i>
+            <h5 class="fw-bold mt-3 text-secondary">No leave requests found</h5>
+            <p class="text-muted small mb-3">You haven't applied for any leaves yet.</p>
+            <a href="{% url 'apply_leave' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Apply for Your First Leave
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

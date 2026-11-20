@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Apply for Leave | LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="card p-4 shadow-sm mb-4">
+            <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+                <div class="bg-primary text-white rounded-circle p-3 d-inline-flex">
+                    <i class="bi bi-file-earmark-plus-fill fs-3"></i>
+                </div>
+                <div>
+                    <h3 class="fw-bold mb-0">Apply for Leave</h3>
+                    <p class="text-muted small mb-0">Submit a new leave application to initiate the approval workflow</p>
+                </div>
+            </div>
+
+            <form method="post" id="leaveApplicationForm" novalidate>
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2 small">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- Leave Type -->
+                <div class="mb-3">
+                    <label for="id_leave_type" class="form-label fw-semibold">
+                        Leave Type <span class="text-danger">*</span>
+                    </label>
+                    {{ form.leave_type }}
+                    {% if form.leave_type.errors %}
+                        <div class="text-danger small mt-1">{{ form.leave_type.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Date Range -->
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label for="id_start_date" class="form-label fw-semibold">
+                            Start Date <span class="text-danger">*</span>
+                        </label>
+                        {{ form.start_date }}
+                        {% if form.start_date.errors %}
+                            <div class="text-danger small mt-1">{{ form.start_date.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="id_end_date" class="form-label fw-semibold">
+                            End Date <span class="text-danger">*</span>
+                        </label>
+                        {{ form.end_date }}
+                        {% if form.end_date.errors %}
+                            <div class="text-danger small mt-1">{{ form.end_date.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Automatic Duration Calculation & Dynamic Workflow Badge -->
+                <div class="card bg-light border p-3 mb-3" id="durationCard" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <span class="text-muted small text-uppercase fw-semibold d-block">Calculated Duration</span>
+                            <span class="fs-4 fw-bold text-primary" id="calculatedDaysText">0 Days</span>
+                        </div>
+                        <div id="workflowRuleBadge">
+                            <!-- Populated dynamically via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reason -->
+                <div class="mb-4">
+                    <label for="id_reason" class="form-label fw-semibold">
+                        Reason for Leave <span class="text-danger">*</span>
+                    </label>
+                    {{ form.reason }}
+                    <div class="form-text">Clearly explain the necessity for your time-off request.</div>
+                    {% if form.reason.errors %}
+                        <div class="text-danger small mt-1">{{ form.reason.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% url 'employee_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-lg px-4 fw-semibold" id="submitBtn">
+                        <i class="bi bi-send-fill me-1"></i> Submit Application
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sidebar: Available Quotas -->
+    <div class="col-12 col-lg-4">
+        <div class="card p-3 shadow-sm mb-4">
+            <h6 class="fw-bold mb-3 text-secondary">
+                <i class="bi bi-pie-chart-fill text-primary me-2"></i>Your Leave Balances ({{ current_year }})
+            </h6>
+            {% for bal in balances %}
+                <div class="p-2 mb-2 rounded bg-light border-start border-3 border-primary">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold small text-dark">{{ bal.leave_type.name }}</span>
+                        <span class="badge bg-primary">{{ bal.remaining_days }}d remaining</span>
+                    </div>
+                    <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                        Allocated: {{ bal.allocated_days }}d | Used: {{ bal.used_days }}d | Pending: {{ bal.pending_days }}d
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-muted small mb-0">Balances will appear here once configured.</p>
+            {% endfor %}
+        </div>
+
+        <div class="card p-3 bg-light border-0 shadow-sm">
+            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-shield-check text-success me-1"></i>Approval Rules</h6>
+            <ul class="small text-muted ps-3 mb-0">
+                <li class="mb-1"><strong>1 to 5 days:</strong> Single-level review by your Direct Manager.</li>
+                <li><strong>More than 5 days:</strong> Multi-level review (Direct Manager approval followed by HR / Admin approval).</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDateInput = document.getElementById('id_start_date');
+        const endDateInput = document.getElementById('id_end_date');
+        const durationCard = document.getElementById('durationCard');
+        const calculatedDaysText = document.getElementById('calculatedDaysText');
+        const workflowRuleBadge = document.getElementById('workflowRuleBadge');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function updateDaysCalculation() {
+            const startVal = startDateInput.value;
+            const endVal = endDateInput.value;
+
+            if (startVal && endVal) {
+                const startDate = new Date(startVal);
+                const endDate = new Date(endVal);
+
+                if (endDate < startDate) {
+                    durationCard.style.display = 'block';
+                    calculatedDaysText.textContent = 'Invalid Date Range';
+                    calculatedDaysText.className = 'fs-5 fw-bold text-danger';
+                    workflowRuleBadge.innerHTML = '<span class="badge bg-danger">End date cannot precede start date</span>';
+                    submitBtn.disabled = true;
+                    return;
+                }
+
+                // Calculate inclusive calendar days: (endDate - startDate) in days + 1
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+                durationCard.style.display = 'block';
+                calculatedDaysText.textContent = diffDays + (diffDays === 1 ? ' Day' : ' Days');
+                calculatedDaysText.className = 'fs-4 fw-bold text-primary';
+                submitBtn.disabled = false;
+
+                // Dynamic rule indicator based on the > 5 days requirement
+                if (diffDays <= 5) {
+                    workflowRuleBadge.innerHTML = `
+                        <span class="badge bg-success-subtle text-success border border-success p-2">
+                            <i class="bi bi-check-circle me-1"></i> 1-Level Approval: Direct Manager
+                        </span>
+                    `;
+                } else {
+                    workflowRuleBadge.innerHTML = `
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning p-2">
+                            <i class="bi bi-diagram-3 me-1"></i> 2-Level Approval: Manager &rarr; HR / Admin
+                        </span>
+                    `;
+                }
+            } else {
+                durationCard.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        }
+
+        startDateInput.addEventListener('change', updateDaysCalculation);
+        endDateInput.addEventListener('change', updateDaysCalculation);
+
+        // Run calculation once on load if values are already populated
+        if (startDateInput.value && endDateInput.value) {
+            updateDaysCalculation();
+        }
+    });
+</script>
+{% endblock %}
